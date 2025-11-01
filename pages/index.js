@@ -1,22 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Search, Download, TrendingUp, TrendingDown } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown } from 'lucide-react';
+import SearchBar from './components/SearchBar';
 
 export default function Home() {
   const [symbol, setSymbol] = useState('NVDA');
   const [stockData, setStockData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [timeframe, setTimeframe] = useState('monthly'); // weekly, monthly, quarterly, yearly
-  const [dateRange, setDateRange] = useState('5y'); // 1y, 3y, 5y, 10y, custom
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  const [timeframe, setTimeframe] = useState('monthly');
+  const [dateRange, setDateRange] = useState('5y');
 
   // Fetch stock data
   const fetchStockData = async (ticker) => {
     setLoading(true);
     setError(null);
     try {
-      // Using demo data for now - in production, replace with real API
       const mockData = generateMockStockData(ticker);
       setStockData(mockData);
     } catch (err) {
@@ -26,7 +24,7 @@ export default function Home() {
     }
   };
 
-  // Generate mock stock data (replace with real API call later)
+  // Generate mock stock data
   const generateMockStockData = (ticker) => {
     const data = [];
     const startDate = new Date(2020, 0, 1);
@@ -170,21 +168,13 @@ export default function Home() {
         <h1 className="text-4xl font-bold text-gray-800 mb-2">📈 Stock Trends Analyzer</h1>
         <p className="text-gray-600 mb-6">Customizable stock performance analysis with flexible timeframes</p>
 
-        {/* Search Bar */}
+        {/* Search Bar with Autocomplete */}
         <form onSubmit={handleSearch} className="flex gap-2 mb-6">
-          <div className="flex-1 flex gap-2">
-            <input
-              type="text"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value)}
-              placeholder="Enter stock symbol (e.g., AAPL, MSFT, NVDA)"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-            />
-            <button type="submit" className="btn btn-primary flex items-center gap-2">
-              <Search size={18} />
-              Search
-            </button>
-          </div>
+          <SearchBar 
+            onSearch={handleSearch} 
+            symbol={symbol} 
+            setSymbol={setSymbol}
+          />
         </form>
 
         {/* Controls */}
@@ -270,7 +260,7 @@ export default function Home() {
 
           {/* Trends Table */}
           <div className="card">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">📈 Trend Table</h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">📈 Trend Table - {symbol}</h2>
             <div className="table-responsive">
               <table>
                 <thead>
@@ -307,8 +297,8 @@ export default function Home() {
 
           {/* Footer */}
           <div className="card text-center text-gray-600">
-            <p className="mb-2">📱 Stock Trends Analyzer v1.0</p>
-            <p className="text-sm">Made with ❤️ | Data is for demonstration purposes</p>
+            <p className="mb-2">📱 Stock Trends Analyzer v1.1</p>
+            <p className="text-sm">Made with ❤️ | Now with Autocomplete Search!</p>
             <p className="text-xs mt-2">Real-time API integration coming soon!</p>
           </div>
         </>

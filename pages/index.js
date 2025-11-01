@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, TrendingUp, TrendingDown } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
-
+import Heatmap from '../components/Heatmap';
 
 export default function Home() {
   const [symbol, setSymbol] = useState('NVDA');
@@ -11,47 +11,31 @@ export default function Home() {
   const [timeframe, setTimeframe] = useState('monthly');
   const [dateRange, setDateRange] = useState('5y');
 
-  // Fetch stock data
-  const fetchStockData = async (ticker) => {
+  async function fetchStockData(ticker) {
     setLoading(true);
     setError(null);
     try {
-      const mockData = generateMockStockData(ticker);
-      setStockData(mockData);
+      const response = await fetch(`/api/stock-data?symbol=${ticker}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch stock data');
+      }
+
+      if (!data.data || data.data.length === 0) {
+        setError('No data available for this stock');
+        setLoading(false);
+        return;
+      }
+
+      setStockData(data);
     } catch (err) {
-      setError('Failed to fetch stock data. Please try again.');
+      setError(err.message || 'Failed to fetch stock data. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Generate mock stock data
-  const generateMockStockData = (ticker) => {
-    const data = [];
-    const startDate = new Date(2020, 0, 1);
-    let price = 50;
-
-    for (let i = 0; i < 60; i++) {
-      const change = (Math.random() - 0.5) * 10;
-      price = Math.max(price + change, 10);
-      const date = new Date(startDate);
-      date.setMonth(date.getMonth() + i);
-
-      data.push({
-        date: date.toISOString().split('T')[0],
-        open: parseFloat((price - Math.random() * 2).toFixed(2)),
-        close: parseFloat((price + Math.random() * 2).toFixed(2)),
-        high: parseFloat((price + Math.random() * 5).toFixed(2)),
-        low: parseFloat((price - Math.random() * 5).toFixed(2)),
-      });
-    }
-
-    return {
-      symbol: ticker,
-      data: data,
-    };
-  };
-
+  }
+ 
   // Group data by timeframe
   const groupByTimeframe = () => {
     if (!stockData) return [];
@@ -188,9 +172,9 @@ export default function Home() {
               onChange={(e) => setTimeframe(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
             >
-              <option value="weekly">Weekly</option>
+              {/*<option value="weekly">Weekly</option>*/}
               <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
+              {/*<option value="quarterly">Quarterly</option>*/}
               <option value="yearly">Yearly</option>
             </select>
           </div>
@@ -222,6 +206,11 @@ export default function Home() {
       {/* Main Content */}
       {!loading && stockData && (
         <>
+          {/* HEATMAP AT TOP */}
+          <div className="card">
+            <Heatmap data={trendData} symbol={symbol} />
+          </div>
+
           {/* Insights Card */}
           {insights && (
             <div className="card">
@@ -259,9 +248,9 @@ export default function Home() {
             </div>
           )}
 
-          {/* Trends Table */}
+          {/* DETAILED TABLE AT BOTTOM */}
           <div className="card">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">📈 Trend Table - {symbol}</h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">📋 Detailed Monthly Data - {symbol}</h2>
             <div className="table-responsive">
               <table>
                 <thead>
@@ -298,9 +287,9 @@ export default function Home() {
 
           {/* Footer */}
           <div className="card text-center text-gray-600">
-            <p className="mb-2">📱 Stock Trends Analyzer v1.1</p>
-            <p className="text-sm">Made with ❤️ | Now with Autocomplete Search!</p>
-            <p className="text-xs mt-2">Real-time API integration coming soon!</p>
+            <p className="mb-2">📱 Stock Trends Analyzer v1.2</p>
+            <p className="text-sm">Made with ❤️ | Now with Heatmap Visualization!</p>
+            <p className="text-xs mt-2">Real-time data from Alpha Vantage API</p>
           </div>
         </>
       )}

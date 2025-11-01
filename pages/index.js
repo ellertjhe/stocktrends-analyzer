@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, TrendingUp, TrendingDown } from 'lucide-react';
-import SearchBar from './components/SearchBar';
+import SearchBar from '../components/SearchBar';
+
 
 export default function Home() {
   const [symbol, setSymbol] = useState('NVDA');

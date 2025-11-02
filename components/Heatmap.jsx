@@ -117,6 +117,8 @@ export default function Heatmap({ data, symbol }) {
   };
 
   return (
+
+    <div className="scale-75 origin-top-left">
     <div className="w-full overflow-x-auto">
       <h2 className="text-2xl font-bold mb-6">{symbol} - {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)} % Change Heatmap</h2>
       
@@ -253,6 +255,7 @@ export default function Heatmap({ data, symbol }) {
           <span>&le;-10% (Strong Loss)</span>
         </div>
       </div>
+    </div>
     </div>
   );
 }

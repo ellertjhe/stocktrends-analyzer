@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Download, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
+import StockChart from '../components/StockChart';
 import Heatmap from '../components/Heatmap';
+import StockTicker from '../components/StockTicker';
 
 export default function Home() {
   const [symbol, setSymbol] = useState('NVDA');
   const [stockData, setStockData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [timeframe, setTimeframe] = useState('monthly');
   const [dateRange, setDateRange] = useState('5y');
 
   async function fetchStockData(ticker) {
@@ -35,28 +36,16 @@ export default function Home() {
       setLoading(false);
     }
   }
- 
-  // Group data by timeframe
-  const groupByTimeframe = () => {
+
+  // Group data by month for heatmap
+  const groupByMonth = () => {
     if (!stockData) return [];
 
     const grouped = {};
 
     stockData.data.forEach((item) => {
       const date = new Date(item.date);
-      let key = '';
-
-      if (timeframe === 'weekly') {
-        const week = Math.ceil(date.getDate() / 7);
-        key = `${date.getFullYear()}-W${week}`;
-      } else if (timeframe === 'monthly') {
-        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      } else if (timeframe === 'quarterly') {
-        const quarter = Math.floor(date.getMonth() / 3) + 1;
-        key = `${date.getFullYear()}-Q${quarter}`;
-      } else if (timeframe === 'yearly') {
-        key = `${date.getFullYear()}`;
-      }
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
       if (!grouped[key]) {
         grouped[key] = [];
@@ -82,30 +71,49 @@ export default function Home() {
 
   // Filter by date range
   const filterByDateRange = (data) => {
+    if (!data || data.length === 0) return data;
+    
+    console.log('Filtering data. DateRange:', dateRange);
+    console.log('Sample period:', data[0]?.period);
+    
     let filtered = data;
 
-    if (dateRange === '1y') {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      filtered = filtered.filter((item) => new Date(item.period) >= oneYearAgo);
-    } else if (dateRange === '3y') {
-      const threeYearsAgo = new Date();
-      threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-      filtered = filtered.filter((item) => new Date(item.period) >= threeYearsAgo);
-    } else if (dateRange === '5y') {
-      const fiveYearsAgo = new Date();
-      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
-      filtered = filtered.filter((item) => new Date(item.period) >= fiveYearsAgo);
-    } else if (dateRange === '10y') {
-      const tenYearsAgo = new Date();
-      tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
-      filtered = filtered.filter((item) => new Date(item.period) >= tenYearsAgo);
+    if (dateRange === 'all') {
+      return filtered;
     }
 
+    const now = new Date();
+    let cutoffDate = new Date();
+
+    if (dateRange === '1y') {
+      cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
+    } else if (dateRange === '3y') {
+      cutoffDate.setFullYear(cutoffDate.getFullYear() - 3);
+    } else if (dateRange === '5y') {
+      cutoffDate.setFullYear(cutoffDate.getFullYear() - 5);
+    } else if (dateRange === '10y') {
+      cutoffDate.setFullYear(cutoffDate.getFullYear() - 10);
+    }
+
+    console.log('Cutoff date:', cutoffDate);
+
+    filtered = data.filter((item) => {
+      try {
+        const [year, month] = item.period.split('-');
+        const itemDate = new Date(year, parseInt(month) - 1, 1);
+        const passes = itemDate >= cutoffDate;
+        return passes;
+      } catch (error) {
+        console.error('Error parsing period:', item.period, error);
+        return true;
+      }
+    });
+
+    console.log('Filtered count:', filtered.length);
     return filtered;
   };
 
-  const trendData = filterByDateRange(groupByTimeframe());
+  const trendData = filterByDateRange(groupByMonth());
 
   // Calculate insights
   const calculateInsights = () => {
@@ -117,23 +125,14 @@ export default function Home() {
     const best = trendData.reduce((max, d) => (d.changePercent > max.changePercent ? d : max));
     const worst = trendData.reduce((min, d) => (d.changePercent < min.changePercent ? d : min));
     const totalReturn = (
-      ((trendData[trendData.length - 1].close - trendData[0].open) / trendData[0].open) *
-      100
+      ((trendData[trendData.length - 1].close - trendData[0].open) / trendData[0].open) * 100
     ).toFixed(2);
 
-    return {
-      bullish,
-      bearish,
-      avgReturn,
-      best,
-      worst,
-      totalReturn,
-    };
+    return { bullish, bearish, avgReturn, best, worst, totalReturn };
   };
 
   const insights = calculateInsights();
 
-  // Handle search
   const handleSearch = (e) => {
     e.preventDefault();
     if (symbol.trim()) {
@@ -141,87 +140,93 @@ export default function Home() {
     }
   };
 
-  // Initialize on mount
   useEffect(() => {
     fetchStockData(symbol);
   }, []);
 
   return (
-    <div className="container">
+    <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <div className="card mt-8">
+      <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-800 mb-2">📈 Stock Trends Analyzer</h1>
-        <p className="text-gray-600 mb-6">Customizable stock performance analysis with flexible timeframes</p>
+        <p className="text-gray-600">Professional stock analysis with real-time data</p>
+      </div>
 
-        {/* Search Bar with Autocomplete */}
-        <form onSubmit={handleSearch} className="flex gap-2 mb-6">
+      {/* Search Section */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <form onSubmit={handleSearch} className="flex gap-2 mb-4">
           <SearchBar 
             onSearch={handleSearch} 
             symbol={symbol} 
             setSymbol={setSymbol}
           />
+          <button
+            type="submit"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 font-semibold"
+          >
+            <Search size={20} />
+            Search
+          </button>
         </form>
 
-        {/* Controls */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Timeframe Selector */}
-          <div>
-            <label className="block text-sm font-semibold mb-2 text-gray-700">Timeframe</label>
-            <select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-            >
-              {/*<option value="weekly">Weekly</option>*/}
-              <option value="monthly">Monthly</option>
-              {/*<option value="quarterly">Quarterly</option>*/}
-              <option value="yearly">Yearly</option>
-            </select>
-          </div>
-
-          {/* Date Range Selector */}
-          <div>
-            <label className="block text-sm font-semibold mb-2 text-gray-700">Period</label>
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-            >
-              <option value="1y">Last 1 Year</option>
-              <option value="3y">Last 3 Years</option>
-              <option value="5y">Last 5 Years</option>
-              <option value="10y">Last 10 Years</option>
-              <option value="all">All Data</option>
-            </select>
-          </div>
+        {/* Date Range Filter */}
+        <div className="flex gap-4">
+          <label className="text-sm font-semibold text-gray-700">Period:</label>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+          >
+            <option value="1y">Last 1 Year</option>
+            <option value="3y">Last 3 Years</option>
+            <option value="5y">Last 5 Years</option>
+            <option value="10y">Last 10 Years</option>
+            <option value="all">All Data</option>
+          </select>
         </div>
       </div>
 
       {/* Error Message */}
-      {error && <div className="card error">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
 
       {/* Loading State */}
-      {loading && <div className="card loading">Loading stock data...</div>}
+      {loading && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+          <p className="text-blue-700">Loading data...</p>
+        </div>
+      )}
 
-      {/* Main Content */}
+      {/* Data Loaded State */}
       {!loading && stockData && (
         <>
-          {/* HEATMAP AT TOP */}
-          <div className="card">
-            <Heatmap data={trendData} symbol={symbol} />
+          {/* Stock Ticker Header */}
+          <StockTicker stockData={stockData} />
+
+          {/* Chart */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <StockChart data={stockData.data} symbol={stockData.symbol} />
           </div>
 
-          {/* Insights Card */}
+          {/* Heatmap */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6 overflow-x-auto">
+            <Heatmap data={trendData} symbol={stockData.symbol} />
+          </div>
+
+          {/* Insights Section */}
           {insights && (
-            <div className="card">
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-2xl font-bold mb-4 text-gray-800">📊 Insights & Statistics</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-green-100 to-green-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Bullish Periods</p>
+                  <p className="text-sm text-gray-600">Bullish</p>
                   <p className="text-2xl font-bold text-green-600">{insights.bullish}</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-100 to-red-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Bearish Periods</p>
+                  <p className="text-sm text-gray-600">Bearish</p>
                   <p className="text-2xl font-bold text-red-600">{insights.bearish}</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-100 to-blue-50 p-4 rounded-lg">
@@ -248,55 +253,51 @@ export default function Home() {
             </div>
           )}
 
-          {/* DETAILED TABLE AT BOTTOM */}
-          <div className="card">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">📋 Detailed Monthly Data - {symbol}</h2>
-            <div className="table-responsive">
-              <table>
+          {/* Detailed Table */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">📋 Monthly Data</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr>
-                    <th>Period</th>
-                    <th>Opening</th>
-                    <th>Closing</th>
-                    <th>Change ($)</th>
-                    <th>Change (%)</th>
-                    <th>Trend</th>
+                  <tr className="border-b-2 border-gray-300">
+                    <th className="text-left py-2 px-2 font-bold">Month</th>
+                    <th className="text-right py-2 px-2 font-bold">Open</th>
+                    <th className="text-right py-2 px-2 font-bold">Close</th>
+                    <th className="text-right py-2 px-2 font-bold">Change $</th>
+                    <th className="text-right py-2 px-2 font-bold">Change %</th>
+                    <th className="text-center py-2 px-2 font-bold">Trend</th>
                   </tr>
                 </thead>
                 <tbody>
                   {trendData.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="font-semibold">{item.period}</td>
-                      <td>${item.open.toFixed(2)}</td>
-                      <td>${item.close.toFixed(2)}</td>
-                      <td className={item.change >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                    <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="py-2 px-2 font-semibold">{item.period}</td>
+                      <td className="text-right py-2 px-2">${item.open.toFixed(2)}</td>
+                      <td className="text-right py-2 px-2">${item.close.toFixed(2)}</td>
+                      <td className={`text-right py-2 px-2 font-bold ${item.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         ${item.change.toFixed(2)}
                       </td>
-                      <td>
-                        <span className={item.changePercent >= 0 ? 'bullish' : 'bearish'}>
-                          {item.changePercent >= 0 ? '🟢' : '🔴'} {item.changePercent}%
+                      <td className="text-right py-2 px-2">
+                        <span className={`font-bold ${item.changePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {item.changePercent >= 0 ? '+' : ''}{item.changePercent}%
                         </span>
                       </td>
-                      <td>{item.changePercent >= 0 ? 'BULLISH' : 'BEARISH'}</td>
+                      <td className="text-center py-2 px-2">
+                        {item.changePercent >= 0 ? '🟢 UP' : '🔴 DOWN'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-
-          {/* Footer */}
-          <div className="card text-center text-gray-600">
-            <p className="mb-2">📱 Stock Trends Analyzer v1.2</p>
-            <p className="text-sm">Made with ❤️ | Now with Heatmap Visualization!</p>
-            <p className="text-xs mt-2">Real-time data from Alpha Vantage API</p>
-          </div>
         </>
       )}
 
-      {/* Ad Space Placeholder */}
-      <div className="card text-center text-gray-400 py-8">
-        <p>💰 Ad Space (Google AdSense will go here)</p>
+      {/* Footer */}
+      <div className="text-center text-gray-500 text-sm mt-8">
+        <p>📱 Stock Trends Analyzer v3.0</p>
+        <p>Made with ❤️ • Powered by Polygon.io, Alpha Vantage, Finnhub</p>
       </div>
     </div>
   );
